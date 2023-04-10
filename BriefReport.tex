@@ -31,7 +31,7 @@
 	tabsize=4,
 	title=\lstname
 }
-\geometry{a4paper, left=1cm, right=1cm}
+\geometry{a4paper, left=1cm, right=1cm, bottom=1cm}
 \title{操作系统实验报告}
 \author{顾芃骐20079100001}
 \begin{document}
@@ -78,4 +78,56 @@ int main(){
 \end{center}
 \subsection{实验结果分析}
 在1.1所示代码中，子进程读取了文件“\textit{os1.in}”；读取完成后，父进程继续执行，并显示了开始、结束和子进程所读取的文件内容。需要注意的是，使用\texttt{vfork}时修改静态区变量是未定义行为，会引发“栈溢出（stack smashing）”。
+\section{线程共享进程数据}
+\begin{itemize}
+	\item 实验目的：了解线程与进程之间的数据共享关系。创建一个线程，在线程中更改进程中的数据。
+	\item 实验软件环境: Ubuntu22.04 \& gnu-c++17
+	\item 实验内容: 在进程中定义全局共享数据，在线程中直接引用该数据进行更改并输出该数据。
+\end{itemize}
+\subsection{代码实现}
+在“\textbf{\textit{os2.cpp}}”中写如下代码。
+\begin{lstlisting}[language=c++]
+#include <thread>
+#include <mutex>
+#include <bits/stdc++.h>
+#include <unistd.h>
+using namespace std;
+static int Sample = 1;
+mutex mutx;
+void thread1(int n){
+	while (Sample <= n)
+	{
+		if (mutx.try_lock())
+		{
+			cout << "Thread1 " << Sample << "\n";
+			sleep(1);
+			Sample++;
+			mutx.unlock();
+		}
+	}
+}
+int main(){
+	int n = 20;
+	thread t1(thread1, n);
+	while (Sample <= n){
+		if (mutx.try_lock()){
+			cout << "MainThread " << Sample << "\n";
+			Sample++;
+			mutx.unlock();
+		}
+	}
+	return 0;
+}
+	\end{lstlisting}
+\subsection{实验结果}
+运行上述代码，可得到实验结果如下图所示。
+\begin{figure}
+	\begin{center}
+		\includegraphics[width=0.7\pdfpagewidth]{os2.png}
+	\end{center}
+\end{figure}
+\subsection{实验结果分析}
+在此次实验结果中，当\texttt{Sample}值为3时，执行了\texttt{thread1}函数。线程中直接引用了这一数据进行更改并输出之。
+\subsection{反思}
+本次实验代码中运行结果可能与“实验结果”章节中的不一致，有时会出现\texttt{thread1}函数不执行的情况，20个输出结果均为“MainThread=x”。
 \end{document}
