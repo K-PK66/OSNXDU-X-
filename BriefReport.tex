@@ -130,4 +130,61 @@ int main(){
 在此次实验结果中，当\texttt{Sample}值为3时，执行了\texttt{thread1}函数。线程中直接引用了这一数据进行更改并输出之。
 \subsection{反思}
 本次实验代码中运行结果可能与“实验结果”章节中的不一致，有时会出现\texttt{thread1}函数不执行的情况，20个输出结果均为“MainThread=x”。
+\section{信号通信}
+\begin{itemize}
+	\item 实验目的：利用信号通信机制在父子进程及兄弟进程间进行通信。
+	\item 实验软件环境: Ubuntu22.04 \& gnu-c++17
+	\item 实验内容: 父进程创建一个有名事件，由子进程发送事件信号，父进程获取事件信号后进行相应的处理。
+\end{itemize}
+\subsection{代码实现}
+\begin{lstlisting}[language=c++]
+#include<unistd.h>
+#include<stdlib.h>
+#include<signal.h>
+#include<bits/stdc++.h>
+
+using namespace std;
+
+void sig_handle(int sig) {
+	cout << "Sigint get!\n";
+	signal(SIGINT, SIG_DFL);
+}
+	
+int main() {
+	auto fa = getpid();
+	auto x = fork();
+	if( getpid() == fa ) {
+		cout << "fa : " << getpid() << "\n";
+		if(signal(SIGINT, sig_handle) == SIG_ERR) {
+			cout << "ERROR!\n";
+		}
+		sleep(100);
+	} else {
+		cout << "ch : " << getpid() << "\n";
+		kill( getppid(), SIGINT );
+	} 
+}
+\end{lstlisting}
+\subsection{实验结果}
+运行上述代码，可得到如下图所示的实验结果。
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width=0.8\pdfpagewidth]{os3-1.png}
+	\end{center}
+\end{figure}
+\subsection{实验结果分析}
+父进程\texttt{sig\_handle}创建了一个有名事件，由子进程\texttt{main}中的\texttt{else}语句完成后发送事件信号，父进程获取这一事件信号后进行相应的处理，反馈为“\textit{Sigint get!}”。\\
+每一次运行此代码得到的\texttt{fa}与\texttt{ch}值均不相同。例如，在上方实验结果之后重新运行此程序，得到“\texttt{fa : 47122}”“\texttt{ch : 47123}”和“\textit{Sigint get!}”（下图）。然而所有的运行结果中，\texttt{fa}与\texttt{ch}的值均满足规律
+\begin{equation}
+	fa + 1 = ch
+\end{equation}
+这是因为，代码中fa有关输出和ch有关输出总是在同一个条件语句中执行的。
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width=0.8\pdfpagewidth]{os3-2.png}
+	\end{center}
+	\caption{重新运行此代码，得到的\texttt{fa}与\texttt{ch}数值并不相同}
+\end{figure}
+\subsection{反思·心得}
+信号通信处理是一种很有效的异步处理方式；从此次实验结果来看运行速度很快。
 \end{document}
