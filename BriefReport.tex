@@ -240,4 +240,64 @@ int main() {
 \end{equation}
 \subsection{反思·心得}
 匿名管道必须早于子进程建立，且只能用于有亲缘关系的进程间通信。
+\clearpage
+\section{命名匿名管道通信}
+\begin{itemize}
+	\item 实验目的：学习使用命名匿名管道在多进程间建立通信。
+	\item 实验软件环境：Ubuntu22.04 \& gnu-c++17
+	\item 实验内容：建立父子进程，由父进程创建一个命名匿名管道，由子进程向命名管道写入数据，由父进程从命名管道读取数据。
+\end{itemize}
+\subsection{代码实现}
+\begin{lstlisting}[language=c++]
+#include <unistd.h>
+#include <sys/stat.h>
+#include <cstring>
+#include <iostream>
+#include <fstream>
+
+#define PATH "/tmp/tmp_fifo.tmp"
+
+using namespace std;
+
+int main()
+{
+    auto r = mkfifo(PATH, S_IFIFO | 0666);
+    auto x = fork();
+    if (x == 0)
+    {
+        ofstream out(PATH);
+        for (int i = 1; i <= 10; i++)
+        {
+            out << i << "\n"
+                << flush;
+            cout << "Child " << getpid() << " write " << i << "\n";
+            sleep(1);
+        }
+        out << "Fin.\n"
+            << flush;
+        cout << "Child ends!\n";
+    }
+    else
+    {
+        ifstream in(PATH);
+        string s;
+        while (getline(in, s) and s != "Fin.")
+        {
+            cout << "Father " << getpid() << " read " << s << "\n";
+        }
+        cout << "Father ends!\n";
+    }
+}
+\end{lstlisting}
+\subsection{实验结果}
+运行上述代码，可得到如下图所示的实验结果。其中，子进程中的每一行（即输出“\textit{Child ends!}”前的每一行）输出结果之间都间隔了一小段时间，父进程输出则一瞬间全部完成。
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width=0.8\pdfpagewidth]{os5.png}
+	\end{center}
+\end{figure}
+\subsection{实验结果分析}
+父进程率先创建了命名匿名管道\texttt{PATH}。子进程将测试数据1至10有序写入了该管道（因为\texttt{sleep}函数，连续两次写入完成s输出之间存在时间间隔），并在最终留下“\textit{Fin.}”作为数据结束暗示。父进程读取这些数据并输出出来，在读取到“\textit{Fin.}”后停止读取（输出“\textit{Father ends!}”），此次命名匿名管道通信完成。
+\subsection{反思·心得}
+文件的本质是流，因此理论上也可以利用文件系统来维护多个进程之间的通信管道。
 \end{document}
