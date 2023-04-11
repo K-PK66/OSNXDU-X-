@@ -365,44 +365,53 @@ int main() {
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
-using namespace std;
+
 const int limit = 100;
+using namespace std;
 int shmid;
 char *p;
-union sample
+
+union samp
 {
     sem_t sem;
     long long tmp;
 };
-sample *sem_input;
-sample *sem_output;
-void init(){
+
+samp *sem_input;
+samp *sem_output;
+
+void init()
+{
     shmid = shmget((key_t)0x2333, 1024, 0666 | IPC_CREAT);
     if (shmid == -1)
         cout << "Create shared memory failed.\n", exit(-1);
     p = (char *)shmat(shmid, 0, 0);
     memset(p, 0, 1024);
-	sem_input = new (p) sample;
+
+    sem_input = new (p) samp;
     if (sem_init(&(sem_input->sem), 1, limit) < 0)
         cout << "Create sem_input failed\n", exit(-1);
     p += sizeof(sem_input);
     p += 32;
     cout << sem_input->tmp << "\n";
-    sem_output = new (p) sample;
+
+    sem_output = new (p) samp;
     if (sem_init(&(sem_output->sem), 1, 0) < 0)
         cout << "Create sem_output failed\n", exit(-1);
     p += sizeof(sem_output);
     p += 32;
     cout << sem_output->tmp << "\n";
 }
-int main(){
+
+int main()
+{
     init();
     srand(time(NULL));
     while (true)
     {
         cout << sem_input->tmp << " " << sem_output->tmp << "\n";
         sem_wait(&(sem_input->sem));
-        for (int i = 0; i < limit; i++){
+        for (int i = 0; i < limit; i++)
             if (p[i] == 0)
             {
                 p[i] = rand() % 26 + 'a';
@@ -411,12 +420,11 @@ int main(){
                 sleep(log(rand()) / 25.0);
                 break;
             }
-		}
     }
 }
 \end{lstlisting}
 \subsection{实验结果}
-在同时运行上方两个代码文件后，得到实验结果如下图所示：
+先运行os6\_producer.cpp文件中的代码，之后运行os6\_consumer.cpp中的代码。随后，得到实验结果如下图所示：
 \begin{figure}[htbp]
 	\begin{center}
 		\includegraphics[width=0.8\pdfpagewidth]{os6.png}

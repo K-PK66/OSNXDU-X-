@@ -7,20 +7,20 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
-using namespace std;
-const int limit = 100;
 
+const int limit = 100;
+using namespace std;
 int shmid;
 char *p;
 
-union sample
+union samp
 {
     sem_t sem;
     long long tmp;
 };
 
-sample *sem_input;
-sample *sem_output;
+samp *sem_input;
+samp *sem_output;
 
 void init()
 {
@@ -30,14 +30,14 @@ void init()
     p = (char *)shmat(shmid, 0, 0);
     memset(p, 0, 1024);
 
-    sem_input = new (p) sample;
+    sem_input = new (p) samp;
     if (sem_init(&(sem_input->sem), 1, limit) < 0)
         cout << "Create sem_input failed\n", exit(-1);
     p += sizeof(sem_input);
     p += 32;
     cout << sem_input->tmp << "\n";
 
-    sem_output = new (p) sample;
+    sem_output = new (p) samp;
     if (sem_init(&(sem_output->sem), 1, 0) < 0)
         cout << "Create sem_output failed\n", exit(-1);
     p += sizeof(sem_output);
