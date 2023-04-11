@@ -300,4 +300,128 @@ int main()
 父进程率先创建了命名匿名管道\texttt{PATH}。子进程将测试数据1至10有序写入了该管道（因为\texttt{sleep}函数，连续两次写入完成s输出之间存在时间间隔），并在最终留下“\textit{Fin.}”作为数据结束暗示。父进程读取这些数据并输出出来，在读取到“\textit{Fin.}”后停止读取（输出“\textit{Father ends!}”），此次命名匿名管道通信完成。
 \subsection{反思·心得}
 文件的本质是流，因此理论上也可以利用文件系统来维护多个进程之间的通信管道。
+\clearpage
+\section{信号量实现进程同步}
+\begin{itemize}
+	\item 实验目的：进程同步是操作系统多进程/多线程并发执行的关键之一，进程同步是并发进程为了完成共同任务采用某个条件来协调他们的活动，这是进程之间发生的一种直接制约关系。本次试验是利用信号量进行进程同步。
+	\item 实验软件环境：Ubuntu22.04 \& gnu-c++17
+	\item 实验内容：
+	\begin{itemize}
+		\item 生产者进程生产产品，消费者进程消费产品。
+		\item 当生产者进程生产产品时，如果没有空缓冲区可用，那么生产者进程必须等待消费者进程释放出一个缓冲区。
+		\item 当消费者进程消费产品时，如果缓冲区中没有产品，那么消费者进程将被阻塞，直到新的产品被生产出来。
+	\end{itemize}
+\end{itemize}
+\subsection{代码实现}
+本此实验采用生产者（os6\_producer）和消费者（os6\_consumer）两种代码，分别如下：
+\begin{lstlisting}[language=c++, name=os6_consumer.cpp]
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <bits/stdc++.h>
+#include <semaphore.h>
+using namespace std;
+const int limit = 100;
+int shmid;
+char *p;
+sem_t * sem_input;
+sem_t * sem_output;
+
+void init() {
+    shmid = shmget((key_t)0x2333, 1024, 0666|IPC_CREAT);
+    if( shmid == -1 ) cout << "Create shared memory failed.\n", exit(-1);
+    p = (char *)shmat( shmid, 0, 0 );
+    
+    sem_input = (sem_t *)p;
+    p += sizeof(sem_input);
+    p += 32;
+    
+    sem_output = (sem_t *)p;
+    p += sizeof(sem_output);
+    p += 32;
+}
+
+int main() {
+    init();
+    srand( time(NULL) );
+    while( true ) {
+        sem_wait(sem_output);
+        for(int i = 0; i < limit; i ++) if( p[i] != 0 )
+          { cout << "Customer take a '" << p[i] << "' on " << i << ".\n";
+            p[i] = 0;
+            sem_post(sem_input);
+            sleep( log(rand()) / 25.0 );
+            break;
+          }
+    }  
+}
+\end{lstlisting}
+\begin{lstlisting}[language=c++, name=os6_producer.cpp]
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <bits/stdc++.h>
+#include <semaphore.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+using namespace std;
+const int limit = 100;
+int shmid;
+char *p;
+union sample
+{
+    sem_t sem;
+    long long tmp;
+};
+sample *sem_input;
+sample *sem_output;
+void init(){
+    shmid = shmget((key_t)0x2333, 1024, 0666 | IPC_CREAT);
+    if (shmid == -1)
+        cout << "Create shared memory failed.\n", exit(-1);
+    p = (char *)shmat(shmid, 0, 0);
+    memset(p, 0, 1024);
+	sem_input = new (p) sample;
+    if (sem_init(&(sem_input->sem), 1, limit) < 0)
+        cout << "Create sem_input failed\n", exit(-1);
+    p += sizeof(sem_input);
+    p += 32;
+    cout << sem_input->tmp << "\n";
+    sem_output = new (p) sample;
+    if (sem_init(&(sem_output->sem), 1, 0) < 0)
+        cout << "Create sem_output failed\n", exit(-1);
+    p += sizeof(sem_output);
+    p += 32;
+    cout << sem_output->tmp << "\n";
+}
+int main(){
+    init();
+    srand(time(NULL));
+    while (true)
+    {
+        cout << sem_input->tmp << " " << sem_output->tmp << "\n";
+        sem_wait(&(sem_input->sem));
+        for (int i = 0; i < limit; i++){
+            if (p[i] == 0)
+            {
+                p[i] = rand() % 26 + 'a';
+                cout << "Producer make a '" << p[i] << "' on " << i << ".\n";
+                sem_post(&(sem_output->sem));
+                sleep(log(rand()) / 25.0);
+                break;
+            }
+		}
+    }
+}
+\end{lstlisting}
+\subsection{实验结果}
+在同时运行上方两个代码文件后，得到实验结果如下图所示：
+\begin{figure}[htbp]
+	\begin{center}
+		\includegraphics[width=0.8\pdfpagewidth]{os6.png}
+	\end{center}
+\end{figure}
+\subsection{反思·心得}
+\texttt{sizeof()}函数不能准确计算\texttt{sem\_t *}的大小，所以需要预留足够多的空间。\texttt{new(p) ObjectType}可以表示从p位置分配内存给\texttt{ObjectType}对象，是非常好的选择。
 \end{document}
